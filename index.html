@@ -1321,15 +1321,16 @@ function renderBlockGrid(key,flatsArr){
 /* Formats a flat's "last updated" stamp as HTML: date in bold yellow, time in bold
    white. Falls back to paidDate (date only, no time) when updatedAt is missing. */
 function formatUpdatedStamp(f){
+  const labelHTML=`<b style="color:#ff3b3b;font-weight:800;">🕐 Updated:</b>`;
   if(f.updatedAt){
     const d=new Date(f.updatedAt);
     const dateStr=d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
     const timeStr=d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
-    return `<b style="color:var(--partial);font-weight:800;">${dateStr}</b> <b style="color:#fff;font-weight:800;">${timeStr}</b>`;
+    return `${labelHTML} <b style="color:var(--partial);font-weight:800;">${dateStr}</b> <b style="color:#fff;font-weight:800;">${timeStr}</b>`;
   }
   if(f.paidDate){
     const dateStr=new Date(f.paidDate).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
-    return `<b style="color:var(--partial);font-weight:800;">${dateStr}</b>`;
+    return `${labelHTML} <b style="color:var(--partial);font-weight:800;">${dateStr}</b>`;
   }
   return '—';
 }
@@ -1367,7 +1368,7 @@ function showTooltip(e,f){
       <div class="tt-bills-section">
         <div class="tt-bills-title">📎 Receipt${receiptCount>1?'s ('+receiptCount+')':''}</div>
         <div class="tt-bill-strip">${thumbsHTML}</div>
-        <div class="tt-updated">🕐 Updated: ${formatUpdatedStamp(f)}</div>
+        <div class="tt-updated">${formatUpdatedStamp(f)}</div>
       </div>`;
   }
 
@@ -1541,7 +1542,7 @@ function renderTableView(key,flatsArr){
       <td class="num">${inr(f.paid)}</td>
       <td class="num" style="color:${f.balance>0.004?'var(--unpaid)':'var(--muted)'}">${inr(f.balance)}</td>
       <td><span class="status-chip ${f.status}">${f.status.toUpperCase()}</span></td>
-      <td style="color:var(--muted);font-size:12px;">${f.paidDate||'—'}</td>
+      <td style="color:var(--muted);font-size:12px;">${f.paidDate||'—'}${f.updatedAt?`<br><span style="font-size:10px;">${formatUpdatedStamp(f)}</span>`:''}</td>
       <td style="font-size:12px;">${methodCell}</td>
       <td><button class="paybtn" data-flat="${f.id}" ${admin?'':'disabled'}>💳 ${admin?'Edit':'View'}</button></td>
     </tr>`;
@@ -1644,7 +1645,7 @@ function renderGalleryView(key,flatsArr){
             ${f.balance>0.004?`&nbsp;·&nbsp;<span>Balance: <b style="color:var(--unpaid)">${inr(f.balance)}</b></span>`:''}
           </div>
           ${methodStr?`<div class="gc-meta">${methodStr}${shortComment?` — ${shortComment}`:''}</div>`:''}
-          <div class="gc-updated">🕐 Updated: ${formatUpdatedStamp(f)}</div>
+          <div class="gc-updated">${formatUpdatedStamp(f)}</div>
         </div>
         <div class="gc-actions">
           ${hasImg?`<button class="gc-view-btn" data-flat="${f.id}">🔍 View Receipt</button>`:''}
