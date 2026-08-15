@@ -116,6 +116,18 @@ tbody tr:hover td{background:#16263a;}
 .block-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
 .block-card .bc-head{background:var(--panel2);padding:11px 15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
 .bc-head .bname{font-weight:800;font-size:14px;letter-spacing:.6px;color:var(--accent2);}
+.block-medal{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:20px;font-weight:900;letter-spacing:.3px;vertical-align:middle;}
+.block-medal.size-lg{font-size:13px;padding:4px 12px;border-radius:24px;}
+.block-medal.size-md{font-size:10.5px;padding:3px 9px;}
+.block-medal.size-sm{font-size:8.5px;padding:1.5px 7px;}
+.block-leaderboard{background:#0d1929;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px;}
+.block-leaderboard .lb-title{font-size:10.5px;color:var(--muted2);font-weight:700;margin-bottom:9px;letter-spacing:.2px;}
+.block-leaderboard .lb-rows{display:flex;flex-direction:column;gap:5px;}
+.block-leaderboard .lb-row{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:6px;font-size:12px;}
+.block-leaderboard .lb-row.lb-top{background:rgba(255,255,255,.04);}
+.block-leaderboard .lb-rank{color:var(--muted);font-weight:800;width:24px;flex-shrink:0;}
+.block-leaderboard .lb-block{font-weight:800;width:64px;flex-shrink:0;}
+.block-leaderboard .lb-counts{display:flex;gap:10px;font-weight:700;flex:1;}
 .bc-head .bstats{font-size:10.5px;color:var(--muted);font-weight:600;}
 .bc-body{padding:12px 14px;display:flex;flex-direction:column;gap:9px;}
 .bc-row{display:flex;align-items:center;gap:8px;}
@@ -372,6 +384,72 @@ function generateFlats(){
 }
 const ALL_FLATS=generateFlats();
 const TOTAL_FLATS=ALL_FLATS.length;
+
+/* Ranks all 8 blocks for a given month's flats by payment performance:
+   1) most fully-PAID flats, 2) tiebreak by most PARTIAL flats, 3) tiebreak
+   by fewest UNPAID flats. Top 3 blocks get a Platinum/Gold/Silver medal. */
+function computeBlockRankings(flatsArr){
+  const stats=BLOCKS.map(b=>{
+    const bf=flatsArr.filter(f=>f.block===b.block);
+    const paidCt=bf.filter(f=>f.status==='paid').length;
+    const partCt=bf.filter(f=>f.status==='partial').length;
+    const unpaidCt=bf.filter(f=>f.status==='unpaid').length;
+    return {block:b.block,paidCt,partCt,unpaidCt};
+  });
+  stats.sort((a,b)=>{
+    if(b.paidCt!==a.paidCt) return b.paidCt-a.paidCt;
+    if(b.partCt!==a.partCt) return b.partCt-a.partCt;
+    return a.unpaidCt-b.unpaidCt;
+  });
+  const MEDALS=[
+    {tier:'PLATINUM',emoji:'🏆',color:'#e5e4e2',glow:'rgba(229,228,226,.6)',size:'lg'},
+    {tier:'GOLD',emoji:'🏆',color:'#ffd700',glow:'rgba(255,215,0,.5)',size:'md'},
+    {tier:'SILVER',emoji:'🏆',color:'#c0c0c0',glow:'rgba(192,192,192,.4)',size:'sm'},
+  ];
+  const medals={};
+  for(let i=0;i<Math.min(3,stats.length);i++){
+    medals[stats[i].block]={...MEDALS[i],rank:i+1};
+  }
+  return medals;
+}
+function medalBadgeHTML(medal){
+  if(!medal) return '';
+  return `<span class="block-medal size-${medal.size}" style="background:linear-gradient(145deg,${medal.color},${medal.color}cc);box-shadow:0 0 8px ${medal.glow};color:#0a0f1a;">${medal.emoji} ${medal.tier}</span>`;
+}
+/* Full ranked breakdown of all 8 blocks — Green(paid)/Yellow(partial)/Red(unpaid)
+   counts — shown as a leaderboard strip so the medal assignment is verifiable. */
+function buildBlockLeaderboardHTML(flatsArr){
+  const stats=BLOCKS.map(b=>{
+    const bf=flatsArr.filter(f=>f.block===b.block);
+    const paidCt=bf.filter(f=>f.status==='paid').length;
+    const partCt=bf.filter(f=>f.status==='partial').length;
+    const unpaidCt=bf.filter(f=>f.status==='unpaid').length;
+    return {block:b.block,paidCt,partCt,unpaidCt};
+  });
+  stats.sort((a,b)=>{
+    if(b.paidCt!==a.paidCt) return b.paidCt-a.paidCt;
+    if(b.partCt!==a.partCt) return b.partCt-a.partCt;
+    return a.unpaidCt-b.unpaidCt;
+  });
+  const medals=computeBlockRankings(flatsArr);
+  const rows=stats.map((s,i)=>{
+    const medal=medals[s.block];
+    return `<div class="lb-row ${medal?'lb-top':''}">
+      <span class="lb-rank">#${i+1}</span>
+      <span class="lb-block">Block ${s.block}</span>
+      <span class="lb-counts">
+        <span style="color:var(--paid)">🟢 ${s.paidCt}</span>
+        <span style="color:var(--partial)">🟡 ${s.partCt}</span>
+        <span style="color:var(--unpaid)">🔴 ${s.unpaidCt}</span>
+      </span>
+      ${medal?medalBadgeHTML(medal):''}
+    </div>`;
+  }).join('');
+  return `<div class="block-leaderboard">
+    <div class="lb-title">🏅 Block Leaderboard — ranked by Green (paid) → Yellow (partial) → fewest Red (unpaid)</div>
+    <div class="lb-rows">${rows}</div>
+  </div>`;
+}
 
 /* ============================================================
    TURSO CONFIG (paste your values here)
@@ -1268,7 +1346,9 @@ function renderBlockGrid(key,flatsArr){
   const filtered=applyFilters(flatsArr);
   const filteredIds=new Set(filtered.map(f=>f.id));
   const admin=isAdmin();
-  let html=`<div id="blockGrid">`;
+  const blockMedals=computeBlockRankings(flatsArr);
+  let html=buildBlockLeaderboardHTML(flatsArr);
+  html+=`<div id="blockGrid">`;
   for(const b of BLOCKS){
     const blockFlats=flatsArr.filter(f=>f.block===b.block);
     if(filters.block!=='ALL'&&filters.block!==b.block) continue;
@@ -1277,7 +1357,7 @@ function renderBlockGrid(key,flatsArr){
     const pCt=blockFlats.filter(f=>f.status==='paid').length;
     const partCt=blockFlats.filter(f=>f.status==='partial').length;
     html+=`<div class="block-card"><div class="bc-head">
-      <span class="bname">BLOCK ${b.block}</span>
+      <span class="bname">BLOCK ${b.block}${medalBadgeHTML(blockMedals[b.block])}</span>
       <span class="bstats"><span style="color:var(--paid)">${pCt} paid</span> · <span style="color:var(--partial)">${partCt} partial</span> · <span style="color:var(--unpaid)">${blockFlats.length-pCt-partCt} unpaid</span></span>
     </div><div class="bc-body">`;
     for(const fl of FLOORS){
@@ -1321,7 +1401,7 @@ function renderBlockGrid(key,flatsArr){
 /* Formats a flat's "last updated" stamp as HTML: date in bold yellow, time in bold
    white. Falls back to paidDate (date only, no time) when updatedAt is missing. */
 function formatUpdatedStamp(f){
-  const labelHTML=`<b style="color:#ff3b3b;font-weight:800;">🕐 Updated:</b>`;
+  const labelHTML=`<b style="color:#ff8c00;font-weight:800;">🕐 Updated:</b>`;
   if(f.updatedAt){
     const d=new Date(f.updatedAt);
     const dateStr=d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
@@ -1526,9 +1606,10 @@ function renderTableView(key,flatsArr){
   </table></div>`;
   const filtered=applyFilters(flatsArr);
   const body=document.getElementById('flatsBody');
+  const blockMedals=computeBlockRankings(flatsArr);
   let html='',lastBlock=null;
   for(const f of filtered){
-    if(f.block!==lastBlock){html+=`<tr class="block-sep"><td colspan="10">BLOCK ${f.block}</td></tr>`;lastBlock=f.block;}
+    if(f.block!==lastBlock){html+=`<tr class="block-sep"><td colspan="10">BLOCK ${f.block}${medalBadgeHTML(blockMedals[f.block])}</td></tr>`;lastBlock=f.block;}
     const methodCell=f.paymentMethod
       ?(f.paymentMethod==='upi'
         ?`<span title="${f.paymentScreenshot?'Receipt attached':''}">📱 UPI ${f.paymentScreenshot?'📎':''}</span>`
